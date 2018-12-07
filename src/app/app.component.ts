@@ -35,18 +35,18 @@ class Node<T> {
   }
 }
 
-interface Shift {
-  time?: string;
-  awake: boolean;
-  data: string;
-  guardId?: string;
-  sleepMinutes: number;
+enum Direction {
+  UP,
+  RIGHT,
+  DOWN,
+  LEFT
 }
 
 class Point {
   x: number;
   y: number;
   size: number;
+  infinity = false;
 }
 
 class XY {
@@ -88,6 +88,8 @@ export class AppComponent implements OnInit {
   backgroundImageUrl = '';
 
   solvingTickerInterval;
+
+  maxDistance = 25;
 
   @HostBinding('style.background-image')
   get background(): string {
@@ -156,7 +158,7 @@ export class AppComponent implements OnInit {
       const x = parseInt(parts[0], 10);
       const y = parseInt(parts[1], 10);
 
-      points.push({x: x, y: y, size: 1});
+      points.push({x: x, y: y, size: 1, infinity: false});
 
       xs = Math.min(xs, x);
       xl = Math.max(xl, x);
@@ -176,11 +178,118 @@ export class AppComponent implements OnInit {
       claims.push(new Array(yl));
     }
 
+    this.maxDistance = 35;
     for (const p of points) {
       const claim = {point: p, distance: 0, x: p.x, y: p.y};
       claims[p.x][p.y] = claim;
 
       this.expandClaim(claims, limits, claim);
+    }
+
+    const amount = this.maxDistance + 1;
+    const half = amount / 2;
+    this.maxDistance = 90;
+
+
+    for (const p of points) {
+
+      const claim = claims[p.x][p.y];
+
+      const up = claim.y - amount >= limits.ys ? {x: claim.x, y: claim.y - amount} : null;
+      const right = claim.x + amount <= limits.xl ? {x: claim.x + amount, y: claim.y} : null;
+      const down = claim.y + amount <= limits.yl ? {x: claim.x, y: claim.y + amount} : null;
+      const left = claim.x - amount >= limits.xs ? {x: claim.x - amount, y: claim.y} : null;
+
+      const ne = claim.y - half >= limits.ys && claim.x + half <= limits.xl ? {x: claim.x + half, y: claim.y - half} : null;
+      const se = claim.x + half <= limits.xl && claim.y + half <= limits.yl ? {x: claim.x + half, y: claim.y + half} : null;
+      const sw = claim.y + half <= limits.yl && claim.x - half >= limits.xs ? {x: claim.x - half, y: claim.y + half} : null;
+      const nw = claim.x - half >= limits.xs && claim.y - half >= limits.ys ? {x: claim.x - half, y: claim.y - half} : null;
+
+      if (claim && claim.point) {
+        if (up) {
+          this.expandClaimDirection(claims, limits, claim, up, Direction.UP);
+        }
+
+        if (right) {
+          this.expandClaimDirection(claims, limits, claim, right, Direction.RIGHT);
+        }
+
+        if (down) {
+          this.expandClaimDirection(claims, limits, claim, down, Direction.DOWN);
+        }
+
+        if (left) {
+          this.expandClaimDirection(claims, limits, claim, left, Direction.LEFT);
+        }
+
+        if (ne) {
+          this.expandClaimDirection(claims, limits, claim, ne, Direction.RIGHT);
+        }
+
+        if (se) {
+          this.expandClaimDirection(claims, limits, claim, se, Direction.DOWN);
+        }
+
+        if (sw) {
+          this.expandClaimDirection(claims, limits, claim, sw, Direction.LEFT);
+        }
+
+        if (nw) {
+          this.expandClaimDirection(claims, limits, claim, nw, Direction.UP);
+        }
+      }
+    }
+    /*
+
+        for (let x = limits.xs; x < limits.xl; x++) {
+          for (let y = limits.ys; y < limits.yl; y++) {
+            if (claims[x][y] != null) {
+              continue;
+            }
+
+            const xy = {x: x, y: y};
+
+            if (y - 1 >= limits.ys && claims[x][y - 1] != null && claims[x][y - 1].point != null) {
+              this.expandClaimDirection(claims, limits, claims[x][y - 1], xy, Direction.UP);
+            }
+
+            if (x + 1 <= limits.xl && claims[x + 1][y] != null && claims[x + 1][y].point != null) {
+              this.expandClaimDirection(claims, limits, claims[x + 1][y], xy, Direction.RIGHT);
+            }
+
+
+            if (y + 1 <= limits.yl && claims[x][y + 1] != null && claims[x][y + 1].point != null) {
+              this.expandClaimDirection(claims, limits, claims[x][y + 1], xy, Direction.DOWN);
+            }
+
+            if (x - 1 >= limits.xs && claims[x - 1][y] != null && claims[x - 1][y].point != null) {
+              this.expandClaimDirection(claims, limits, claims[x - 1][y], xy, Direction.LEFT);
+            }
+          }
+        }*/
+
+    for (let x = limits.xs; x < limits.xl; x++) {
+      const miny = claims[x][limits.ys];
+      const maxy = claims[x][limits.yl - 1];
+
+      if (miny && miny.point) {
+        miny.point.infinity = true;
+      }
+      if (maxy && maxy.point) {
+        maxy.point.infinity = true;
+      }
+    }
+
+    for (let y = limits.ys; y < limits.yl; y++) {
+      const minx = claims[limits.xs][y];
+      const maxx = claims[limits.xl - 1][y];
+
+      if (minx && minx.point) {
+        minx.point.infinity = true;
+      }
+      if (maxx && maxx.point) {
+        maxx.point.infinity = true;
+      }
     }
 
     this.debugStr = '';
@@ -191,487 +300,33 @@ export class AppComponent implements OnInit {
         const c = claims[x][y];
 
         if (c != null) {
-          this.debugStr += c.distance < 10 ? c.distance : '@';
+          if (c.point == null) {
+            this.debugStr += '.';
+            continue;
+          }
+
+          const zero = c.distance === 0 ? 0 : 1;
+
+          this.debugStr += String.fromCharCode(64 + 32 * zero + (c.point.x * c.point.y) % 26);
 
           continue;
         }
         this.debugStr += ' ';
       }
       this.debugStr += '\n';
-
     }
 
-    return 'VILHO';
-  }
-
-  async solve5b(input: string) {
-    const units = 'abcdefghijklmnopqrstuvwxyz';
-
-    let smallestUnit = null;
-    let smallest = -1;
-
-    this.debugStr = '';
-
-    for (const unit of units) {
-      const companionUnit = String.fromCharCode(unit.charCodeAt(0) - 32);
-
-      const reducedInput = input
-        .replace(new RegExp(unit, 'g'), '')
-        .replace(new RegExp(companionUnit, 'g'), '');
-
-      const length = await this.solve5a(reducedInput);
-
-      this.debugStr += unit + ': ' + length + '\n';
-
-      if (smallest < 0 || length < smallest) {
-        smallestUnit = unit;
-        smallest = length;
-      }
-    }
-
-    return smallest;
-  }
-
-  async solve5a(input: string) {
-    const linkedList = new LinkedList<string>();
-
-    for (const c of input) {
-      linkedList.addToEnd(c);
-    }
-
-    let curNode = linkedList.head;
-
-    do {
-      const next = curNode.next;
-
-      if (next == null) {
-        break;
-      }
-
-      if (this.polarize(curNode, next)) {
-        if (linkedList.head === curNode) {
-          next.next.prev = null;
-          linkedList.head = next.next;
-
-          curNode = linkedList.head;
-        } else if (linkedList.tail === next) {
-          linkedList.tail = curNode.prev;
-          linkedList.tail.next = null;
-
-          curNode = linkedList.tail;
-          break;
-        } else {
-          const prev = curNode.prev;
-          prev.next = next.next;
-          next.next.prev = prev;
-
-          curNode = prev;
-        }
-
-        linkedList.length -= 2;
-      } else {
-        // this.debugStr += curNode.value;
-
-        curNode = curNode.next;
-      }
-    }
-    while (curNode.next != null);
-
-    return linkedList.length;
-  }
-
-  async solve4b(input: string) {
-    const rows = input.split('\n');
-
-    const rowObjs = [];
-
-    const fabricReservations = {};
-
-    const candidates = {};
-
-    for (const row of rows) {
-      const parts = row.replace('[', '').split('] ');
-
-      rowObjs.push({
-        time: parts[0],
-        data: parts[1]
-      });
-    }
-
-    rowObjs.sort((a, b) => a.time.localeCompare(b.time, [], {numeric: true}));
-
-    const shifts: Shift[] = [];
-
-    let shift: Shift = null;
-
-    for (const row of rowObjs) {
-      if (row.data.startsWith('Guard #')) {
-        if (shift != null) {
-          shifts.push(this.shiftEnd(shift));
-        }
-
-        shift = this.shiftStart(row);
-
-        continue;
-      }
-
-      shift = this.shiftAdd(shift, row);
-
-    }
-
-    shifts.push(this.shiftEnd(shift));
-
-    this.debugStr = '';
-
-    for (const row of shifts) {
-      this.debugStr += row.time + ' #' + row.guardId + '  \t' + row.data + ' ' + row.sleepMinutes + '\n';
-    }
-
-    const guards = {};
-    const guardArr = [];
-
-    for (const s of shifts) {
-      if (guards[s.guardId] == null) {
-        guards[s.guardId] = {
-          guardId: s.guardId,
-          shifts: [],
-          sleepMinutes: 0,
-          avgSleepMinutes: 0,
-          data: Array.from(Array(60), () => 0),
-          highest: 0
-        };
-
-        guardArr.push(guards[s.guardId]);
-      }
-
-      const g = guards[s.guardId];
-      g.shifts.push(s);
-
-      for (let m = 0; m < 60; m++) {
-        const add = s.data[m] === '#' ? 1 : 0;
-        g.sleepMinutes += add;
-        g.data[m] += add;
-
-        if (g.data[m] > g.highest) {
-          g.highest = g.data[m];
-        }
-      }
-
-      g.avgSleepMinutes = g.sleepMinutes / g.shifts.length;
-    }
-
-    guardArr.sort((a, b) => a.highest > b.highest ? -1 : 1);
+    const finitePoints = points
+      .filter(p => !p.infinity)
+      .sort((a, b) => a.size > b.size ? -1 : 1);
 
     this.debugStr += '\n';
-
-    for (const row of guardArr) {
-
-      this.debugStr += '#' + row.guardId + '  \t' + row.data.join('') + ' ' + row.sleepMinutes + '\n';
+    for (const p of points) {
+      this.debugStr += p.x + ', ' + p.y + ' ' + p.size + ' ' + String.fromCharCode(64 + (p.x * p.y) % 26) + ' ' + p.infinity;
+      this.debugStr += '\n';
     }
 
-    const sleepiest = guardArr[0];
-
-    let sleepiestMinute = -1;
-    let minuteValue = -1;
-    for (let m = 0; m < 60; m++) {
-      if (sleepiest.data[m] > minuteValue) {
-        minuteValue = sleepiest.data[m];
-        sleepiestMinute = m;
-      }
-    }
-
-    this.debugStr += '\n';
-    this.debugStr += sleepiestMinute + ':' + minuteValue;
-    this.debugStr += '\n';
-
-
-    return sleepiest.guardId * sleepiestMinute;
-  }
-
-  async solve4a(input: string) {
-    const rows = input.split('\n');
-
-    const rowObjs = [];
-
-    const fabricReservations = {};
-
-    const candidates = {};
-
-    for (const row of rows) {
-      const parts = row.replace('[', '').split('] ');
-
-      rowObjs.push({
-        time: parts[0],
-        data: parts[1]
-      });
-    }
-
-    rowObjs.sort((a, b) => a.time.localeCompare(b.time, [], {numeric: true}));
-
-    const shifts: Shift[] = [];
-
-    let shift: Shift = null;
-
-    for (const row of rowObjs) {
-      if (row.data.startsWith('Guard #')) {
-        if (shift != null) {
-          shifts.push(this.shiftEnd(shift));
-        }
-
-        shift = this.shiftStart(row);
-
-        continue;
-      }
-
-      shift = this.shiftAdd(shift, row);
-
-    }
-
-    shifts.push(this.shiftEnd(shift));
-
-    this.debugStr = '';
-
-    for (const row of shifts) {
-      this.debugStr += row.time + ' #' + row.guardId + '  \t' + row.data + ' ' + row.sleepMinutes + '\n';
-    }
-
-    const guards = {};
-    const guardArr = [];
-
-    for (const s of shifts) {
-      if (guards[s.guardId] == null) {
-        guards[s.guardId] = {
-          guardId: s.guardId,
-          shifts: [],
-          sleepMinutes: 0,
-          avgSleepMinutes: 0,
-          data: Array.from(Array(60), () => 0)
-        };
-
-        guardArr.push(guards[s.guardId]);
-      }
-
-      const g = guards[s.guardId];
-      g.shifts.push(s);
-
-      for (let m = 0; m < 60; m++) {
-        const add = s.data[m] === '#' ? 1 : 0;
-        g.sleepMinutes += add;
-        g.data[m] += add;
-      }
-
-      g.avgSleepMinutes = g.sleepMinutes / g.shifts.length;
-    }
-
-    guardArr.sort((a, b) => a.sleepMinutes > b.sleepMinutes ? -1 : 1);
-
-    this.debugStr += '\n';
-
-    for (const row of guardArr) {
-
-      this.debugStr += '#' + row.guardId + '  \t' + row.data.join('') + ' ' + row.sleepMinutes + '\n';
-    }
-
-    const sleepiest = guardArr[0];
-
-    let sleepiestMinute = -1;
-    let minuteValue = -1;
-    for (let m = 0; m < 60; m++) {
-      if (sleepiest.data[m] > minuteValue) {
-        minuteValue = sleepiest.data[m];
-        sleepiestMinute = m;
-      }
-    }
-
-    return sleepiest.guardId * sleepiestMinute;
-  }
-
-
-  async solve3b(input: string) {
-    const rows = input.split('\n');
-
-    const fabricReservations = {};
-
-    const candidates = {};
-
-    for (const row of rows) {
-      const parts = row.replace(' @ ', ',')
-        .replace(': ', ',')
-        .replace('x', ',')
-        .split(',');
-
-      const id = parts[0].substr(1);
-
-      candidates[id] = true;
-
-      const x_pos = parseInt(parts[1], 10);
-      const y_pos = parseInt(parts[2], 10);
-      const width = parseInt(parts[3], 10);
-      const height = parseInt(parts[4], 10);
-
-      for (let x = x_pos; x < x_pos + width; x++) {
-
-        for (let y = y_pos; y < y_pos + height; y++) {
-          const key = x + 'x' + y;
-          if (fabricReservations[key] == null) {
-            fabricReservations[key] = [];
-          }
-
-          fabricReservations[key].push(id);
-
-          if (fabricReservations[key].length > 1) {
-            for (const resId of fabricReservations[key]) {
-              candidates[resId] = false;
-            }
-          }
-        }
-      }
-    }
-
-    for (const i in candidates) {
-      if (candidates[i]) {
-        return i;
-      }
-    }
-
-    return 'not found';
-  }
-
-
-  async solve3a(input: string) {
-    const rows = input.split('\n');
-
-    const fabricReservations = {};
-
-    for (const row of rows) {
-      const parts = row.replace(' @ ', ',')
-        .replace(': ', ',')
-        .replace('x', ',')
-        .split(',');
-
-      const x_pos = parseInt(parts[1], 10);
-      const y_pos = parseInt(parts[2], 10);
-      const width = parseInt(parts[3], 10);
-      const height = parseInt(parts[4], 10);
-
-      for (let x = x_pos; x < x_pos + width; x++) {
-
-        for (let y = y_pos; y < y_pos + height; y++) {
-          const key = x + 'x' + y;
-          if (fabricReservations[key] == null) {
-            fabricReservations[key] = 0;
-          }
-
-          fabricReservations[key]++;
-        }
-      }
-    }
-
-    let squares = 0;
-
-    for (const i in fabricReservations) {
-      if (fabricReservations[i] > 1) {
-        squares++;
-      }
-    }
-
-    return squares;
-  }
-
-  async solve2b(input: string) {
-    const rows = input.split('\n');
-
-    for (let i = 0; i < rows.length - 1; i++) {
-      for (let j = i + 1; j < rows.length; j++) {
-        const result = this.solve2bChecksum(rows[i], rows[j]);
-
-        if (result != null) {
-          return result;
-        }
-      }
-    }
-
-    return 'not found';
-  }
-
-  solve2bChecksum(a: string, b: string) {
-    for (let i = 0; i < a.length; i++) {
-      if (this.removeCharAt(a, i) === this.removeCharAt(b, i)) {
-        return this.removeCharAt(a, i);
-      }
-    }
-
-    return null;
-  }
-
-  async solve2a(input: string) {
-    const rows = input.split('\n');
-
-    let pairs = 0;
-    let threes = 0;
-
-    for (const row of rows) {
-      const info = this.solve2aChecksum(row);
-
-      if (info.hasPairs) {
-        pairs++;
-      }
-      if (info.hasThrees) {
-        threes++;
-      }
-    }
-
-    return pairs * threes;
-  }
-
-  solve2aChecksum(row) {
-    const marks = {};
-
-    for (const c of row) {
-      if (marks[c] == null) {
-        marks[c] = 0;
-      }
-
-      marks[c]++;
-    }
-
-    let hasPairs = false;
-    let hasThrees = false;
-
-    for (const i in marks) {
-      if (marks[i] === 2) {
-        hasPairs = true;
-      }
-      if (marks[i] === 3) {
-        hasThrees = true;
-      }
-    }
-
-    return {hasPairs: hasPairs, hasThrees: hasThrees};
-  }
-
-  async solve1a(input: string) {
-    const rows = input.split('\n');
-
-    const freqs = {};
-
-    return this.sub1a(rows, 0, freqs);
-  }
-
-  sub1a(rows, lastFreq, freqs) {
-    for (const row of rows) {
-      const freqChange = parseInt(row, 10);
-
-      lastFreq += freqChange;
-
-      if (freqs[lastFreq] === true) {
-        return lastFreq;
-      }
-
-      freqs[lastFreq] = true;
-    }
-
-    return this.sub1a(rows, lastFreq, freqs);
+    return finitePoints[0].size;
   }
 
   solveStart() {
@@ -692,55 +347,6 @@ export class AppComponent implements OnInit {
     this.solution = solution;
   }
 
-  private removeCharAt(a: string, i: number) {
-    if (i === 0) {
-      return a.substr(1);
-    }
-    if (i === a.length - 1) {
-      return a.substr(0, a.length - 1);
-    }
-
-    return a.substr(0, i + 1) + a.substr(i + 2);
-  }
-
-
-  private shiftStart(row: any): Shift {
-    const shift: Shift = {data: '', awake: true, sleepMinutes: 0};
-
-    shift.time = row.time.split(' ')[0];
-    shift.guardId = row.data.replace('Guard #', '').replace(' begins shift', '');
-
-    return shift;
-  }
-
-  private shiftAdd(shift: Shift, row: any): Shift {
-    shift.time = row.time.split(' ')[0];
-
-    const minute = parseInt(row.time.split(':').pop(), 10);
-
-    for (let m = shift.data.length; m < minute; m++) {
-      shift.data += shift.awake ? '.' : '#';
-      shift.sleepMinutes += shift.awake ? 0 : 1;
-    }
-
-    shift.awake = !shift.awake;
-
-    return shift;
-  }
-
-  private shiftEnd(shift: Shift): Shift {
-    for (let m = shift.data.length; m < 60; m++) {
-      shift.data += shift.awake ? '.' : '#';
-      shift.sleepMinutes += shift.awake ? 0 : 1;
-    }
-
-    return shift;
-  }
-
-  private polarize(a: Node<string>, b: Node<string>) {
-    return Math.abs(a.value.charCodeAt(0) - b.value.charCodeAt(0)) === 32;
-  }
-
   private claim(claims: Claim[][], xy: XY): Claim {
     return claims[xy.x][xy.y];
   }
@@ -749,23 +355,22 @@ export class AppComponent implements OnInit {
     return Math.abs(point.x - xy.x) + Math.abs(point.y - xy.y);
   }
 
-  private expandClaimDirection(claims: Claim[][], limits: { yl: number; xl: number; ys: number; xs: number }, claim: Claim, xy: XY) {
-    if (this.manhattanDistance(claim.point, xy) > 40) {
+  private expandClaimDirection(claims: Claim[][], limits: { yl: number; xl: number; ys: number; xs: number },
+                               claim: Claim, xy: XY, direction: Direction) {
+    const distance = Math.abs(claim.point.x - xy.x) + Math.abs(claim.point.y - xy.y);
+
+    if (distance > this.maxDistance) {
       return;
     }
 
-    const exClaim = this.claim(claims, xy);
+    const exClaim = claims[xy.x][xy.y];
     if (exClaim == null) {
-      const newClaim = {x: xy.x, y: xy.y, distance: this.manhattanDistance(claim.point, xy), point: claim.point};
+      const newClaim = {x: xy.x, y: xy.y, distance: distance, point: claim.point};
 
       claims[xy.x][xy.y] = newClaim;
       claim.point.size++;
 
-      this.expandClaim(claims, limits, newClaim);
-
-      console.log('new', xy.x, xy.y);
-
-      return;
+      return this.expandClaim(claims, limits, newClaim);
     }
 
     if (exClaim.point === claim.point) {
@@ -773,60 +378,81 @@ export class AppComponent implements OnInit {
     }
 
 
-    if (exClaim.distance === this.manhattanDistance(claim.point, xy)) {
+    if (exClaim.distance === distance) {
       if (exClaim.point) {
         exClaim.point.size--;
       }
       exClaim.point = null;
 
-      console.log('sama', xy.x, xy.y);
+      switch (direction) {
+        case Direction.UP:
+          xy.y--;
+          if (xy.y < limits.ys) {
+            return;
+          }
+          this.expandClaimDirection(claims, limits, claim, xy, direction);
+          break;
+        case Direction.RIGHT:
+          xy.x++;
+          if (xy.x > limits.xl) {
+            return;
+          }
+          this.expandClaimDirection(claims, limits, claim, xy, direction);
+          break;
+        case Direction.DOWN:
+          xy.y++;
+          if (xy.y > limits.yl) {
+            return;
+          }
+          this.expandClaimDirection(claims, limits, claim, xy, direction);
+          break;
+        case Direction.LEFT:
+          xy.x--;
+          if (xy.x < limits.xs) {
+            return;
+          }
+          this.expandClaimDirection(claims, limits, claim, xy, direction);
+          break;
+      }
+
       return;
     }
 
-    if (exClaim.distance > this.manhattanDistance(claim.point, xy)) {
-      if (exClaim.point) {
-        exClaim.point.size--;
-      }
-
-      exClaim.point = claim.point;
-      exClaim.distance = this.manhattanDistance(claim.point, xy);
-      claim.point.size++;
-
-      this.expandClaim(claims, limits, exClaim);
-
-      console.log('muuttuu', xy.x, xy.y);
+    if (exClaim.distance < distance) {
+      return;
     }
+
+    if (exClaim.point) {
+      exClaim.point.size--;
+    }
+
+    exClaim.point = claim.point;
+    exClaim.distance = distance;
+    claim.point.size++;
+
+    return this.expandClaim(claims, limits, exClaim);
   }
 
   private expandClaim(claims: Claim[][], limits: { yl: number; xl: number; ys: number; xs: number }, claim: Claim) {
-
     const up = claim.y - 1 >= limits.ys ? {x: claim.x, y: claim.y - 1} : null;
     const right = claim.x + 1 <= limits.xl ? {x: claim.x + 1, y: claim.y} : null;
     const down = claim.y + 1 <= limits.yl ? {x: claim.x, y: claim.y + 1} : null;
     const left = claim.x - 1 >= limits.xs ? {x: claim.x - 1, y: claim.y} : null;
 
-    if (up && up.y < claim.y) {
-      this.expandClaimDirection(claims, limits, claim, up);
+    if (up) {
+      this.expandClaimDirection(claims, limits, claim, up, Direction.UP);
     }
 
-    if (right && right.x > claim.x) {
-      this.expandClaimDirection(claims, limits, claim, right);
+    if (right) {
+      this.expandClaimDirection(claims, limits, claim, right, Direction.RIGHT);
     }
 
-    if (down && down.y > claim.y) {
-      this.expandClaimDirection(claims, limits, claim, down);
+    if (down) {
+      this.expandClaimDirection(claims, limits, claim, down, Direction.DOWN);
     }
 
-
-    if (left && left.x < claim.x) {
-      this.expandClaimDirection(claims, limits, claim, left);
+    if (left) {
+      this.expandClaimDirection(claims, limits, claim, left, Direction.LEFT);
     }
-
-
-    // right
-
-    // down
-
-    // left
   }
 }
