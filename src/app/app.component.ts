@@ -61,6 +61,20 @@ class Claim {
   y: number;
 }
 
+class Step {
+  name: string;
+  done: boolean;
+  prerequisites: Step[] = [];
+  followups: Step[] = [];
+
+  constructor(name: string) {
+    this.name = name;
+    this.prerequisites = [];
+    this.followups = [];
+    this.done = false;
+  }
+}
+
 @Component({
   selector: 'app-root',
   template: `
@@ -140,6 +154,66 @@ export class AppComponent implements OnInit {
     const solution = await this[this.latestSolutionName](input);
 
     this.solveFinish(solution);
+  }
+
+  async solve7a(input: string) {
+    const rows = input.split('\n');
+
+    const steps = {};
+
+    for (const r of rows) {
+      const parts = r.replace('Step ', '').replace(' can begin.', '').split(' must be finished before step ');
+
+      const req = parts[0];
+      const s = parts[1];
+
+      if (steps[req] == null) {
+        steps[req] = new Step(req);
+      }
+      if (steps[s] == null) {
+        steps[s] = new Step(s);
+      }
+
+      steps[s].prerequisites.push(steps[req]);
+      steps[req].followups.push(steps[s]);
+    }
+
+    console.log(steps);
+
+    let solution = '';
+
+    let priorityQueue: Step[] = [];
+
+    for (const i in steps) {
+      if (!steps.hasOwnProperty(i)) {
+        continue;
+      }
+
+      priorityQueue.push(steps[i]);
+    }
+
+    priorityQueue.sort((a: Step, b: Step) => {
+      if (a.prerequisites.length !== b.prerequisites.length) {
+        return a.prerequisites.length < b.prerequisites.length ? -1 : 1;
+      }
+
+      return a.name < b.name ? -1 : 1;
+    });
+
+    console.log(priorityQueue);
+
+    while (priorityQueue.length > 0) {
+      const nextFreeStep = priorityQueue
+        .filter(s => s.prerequisites.length === 0 || s.prerequisites.every(s1 => s1.done))
+        .sort((a, b) => a.name < b.name ? -1 : 1)[0];
+
+      nextFreeStep.done = true;
+      solution += nextFreeStep.name;
+
+      priorityQueue = priorityQueue.filter(s => !s.done);
+    }
+
+    return solution;
   }
 
   async solve6a(input: string) {
