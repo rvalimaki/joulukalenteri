@@ -1,13 +1,14 @@
 import {Component, HostBinding, OnInit} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
 
 
+// noinspection JSUnusedLocalSymbols
 class LinkedList<T> {
   head: Node<T>;
   tail: Node<T>;
 
   length = 0;
 
+  // noinspection JSUnusedGlobalSymbols
   addToEnd(val: T) {
     const node = new Node(val);
 
@@ -63,7 +64,7 @@ class Claim {
 
 class Step {
   name: string;
-  done: boolean;
+  done: number;
   prerequisites: Step[] = [];
   followups: Step[] = [];
 
@@ -71,7 +72,7 @@ class Step {
     this.name = name;
     this.prerequisites = [];
     this.followups = [];
-    this.done = false;
+    this.done = 60 + name.charCodeAt(0) - 64;
   }
 }
 
@@ -84,7 +85,7 @@ class Step {
 
     <textarea id="input" name="input" #input></textarea>
 
-    <textarea *ngIf="debugStr" id="debug" name="debug" #debug>{{debugStr}}</textarea>
+    <textarea *ngIf="debugStr" id="debug" name="debug">{{debugStr}}</textarea>
 
     <div class="solution">
       <span>{{solution}}</span>
@@ -110,7 +111,7 @@ export class AppComponent implements OnInit {
     return 'url(' + this.backgroundImageUrl + ')';
   }
 
-  constructor(private http: HttpClient) {
+  constructor() {
 
   }
 
@@ -156,7 +157,8 @@ export class AppComponent implements OnInit {
     this.solveFinish(solution);
   }
 
-  async solve7a(input: string) {
+  // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
+  async solve7b(input: string) {
     const rows = input.split('\n');
 
     const steps = {};
@@ -178,10 +180,6 @@ export class AppComponent implements OnInit {
       steps[req].followups.push(steps[s]);
     }
 
-    console.log(steps);
-
-    let solution = '';
-
     let priorityQueue: Step[] = [];
 
     for (const i in steps) {
@@ -200,22 +198,26 @@ export class AppComponent implements OnInit {
       return a.name < b.name ? -1 : 1;
     });
 
-    console.log(priorityQueue);
+    let solution = 0;
 
     while (priorityQueue.length > 0) {
-      const nextFreeStep = priorityQueue
-        .filter(s => s.prerequisites.length === 0 || s.prerequisites.every(s1 => s1.done))
-        .sort((a, b) => a.name < b.name ? -1 : 1)[0];
+      const nextFreeSteps = priorityQueue
+        .filter(s => s.prerequisites.length === 0 || s.prerequisites.every(s1 => s1.done === 0))
+        .sort((a, b) => a.name < b.name ? -1 : 1);
 
-      nextFreeStep.done = true;
-      solution += nextFreeStep.name;
+      for (let i = 0; i < 5 && i < nextFreeSteps.length; i++) {
+        nextFreeSteps[i].done--;
+      }
 
-      priorityQueue = priorityQueue.filter(s => !s.done);
+      solution++;
+
+      priorityQueue = priorityQueue.filter(s => s.done > 0);
     }
 
     return solution;
   }
 
+  // noinspection JSUnusedGlobalSymbols
   async solve6a(input: string) {
     const rows = input.split('\n');
 
@@ -252,6 +254,7 @@ export class AppComponent implements OnInit {
       claims.push(new Array(yl));
     }
 
+    // due to stack limit, we need to do this in two steps: first recurse all points with 35 manhattan distance...
     this.maxDistance = 35;
     for (const p of points) {
       const claim = {point: p, distance: 0, x: p.x, y: p.y};
@@ -260,13 +263,12 @@ export class AppComponent implements OnInit {
       this.expandClaim(claims, limits, claim);
     }
 
+    // ...and then re-expand those with practically unlimited distance:
     const amount = this.maxDistance + 1;
     const half = amount / 2;
     this.maxDistance = 90;
 
-
     for (const p of points) {
-
       const claim = claims[p.x][p.y];
 
       const up = claim.y - amount >= limits.ys ? {x: claim.x, y: claim.y - amount} : null;
@@ -313,34 +315,6 @@ export class AppComponent implements OnInit {
         }
       }
     }
-    /*
-
-        for (let x = limits.xs; x < limits.xl; x++) {
-          for (let y = limits.ys; y < limits.yl; y++) {
-            if (claims[x][y] != null) {
-              continue;
-            }
-
-            const xy = {x: x, y: y};
-
-            if (y - 1 >= limits.ys && claims[x][y - 1] != null && claims[x][y - 1].point != null) {
-              this.expandClaimDirection(claims, limits, claims[x][y - 1], xy, Direction.UP);
-            }
-
-            if (x + 1 <= limits.xl && claims[x + 1][y] != null && claims[x + 1][y].point != null) {
-              this.expandClaimDirection(claims, limits, claims[x + 1][y], xy, Direction.RIGHT);
-            }
-
-
-            if (y + 1 <= limits.yl && claims[x][y + 1] != null && claims[x][y + 1].point != null) {
-              this.expandClaimDirection(claims, limits, claims[x][y + 1], xy, Direction.DOWN);
-            }
-
-            if (x - 1 >= limits.xs && claims[x - 1][y] != null && claims[x - 1][y].point != null) {
-              this.expandClaimDirection(claims, limits, claims[x - 1][y], xy, Direction.LEFT);
-            }
-          }
-        }*/
 
     for (let x = limits.xs; x < limits.xl; x++) {
       const miny = claims[x][limits.ys];
@@ -368,7 +342,6 @@ export class AppComponent implements OnInit {
 
     this.debugStr = '';
 
-    const pi = 0;
     for (let y = ys; y <= yl; y++) {
       for (let x = xs; x <= xl; x++) {
         const c = claims[x][y];
@@ -419,14 +392,6 @@ export class AppComponent implements OnInit {
     }
 
     this.solution = solution;
-  }
-
-  private claim(claims: Claim[][], xy: XY): Claim {
-    return claims[xy.x][xy.y];
-  }
-
-  private manhattanDistance(point: Point, xy: XY) {
-    return Math.abs(point.x - xy.x) + Math.abs(point.y - xy.y);
   }
 
   private expandClaimDirection(claims: Claim[][], limits: { yl: number; xl: number; ys: number; xs: number },
