@@ -3,14 +3,14 @@ import {Component, HostBinding, OnInit} from '@angular/core';
 
 // noinspection JSUnusedLocalSymbols
 class LinkedList<T> {
-  head: Node<T>;
-  tail: Node<T>;
+  head: ListNode<T>;
+  tail: ListNode<T>;
 
   length = 0;
 
   // noinspection JSUnusedGlobalSymbols
   addToEnd(val: T) {
-    const node = new Node(val);
+    const node = new ListNode(val);
 
     if (this.head == null && this.tail == null) {
       this.head = node;
@@ -26,13 +26,66 @@ class LinkedList<T> {
   }
 }
 
-class Node<T> {
+class ListNode<T> {
   value: T;
-  prev: Node<T>;
-  next: Node<T>;
+  prev: ListNode<T>;
+  next: ListNode<T>;
 
   constructor(val: T) {
     this.value = val;
+  }
+}
+
+
+class Node {
+  numChildren = 0;
+  numMeta = 0;
+  numSiblings = 0;
+
+  parent: Node;
+
+  children: Node[] = [];
+  meta: number[] = [];
+
+  unparsed: number[] = [];
+
+  constructor(nums: number[], parent: Node = null) {
+    this.numChildren = nums[0];
+    this.numMeta = nums[1];
+
+    this.unparsed = nums.slice(2);
+
+    this.parent = parent;
+  }
+
+  parse(solution: number = 0): { unparsed: number[], solution: number } {
+    while (true) {
+      // create new child node:
+      if (this.numChildren > this.children.length) {
+        const child = new Node(this.unparsed, this);
+        this.children.push(child);
+
+        const result = child.parse(solution);
+
+        this.unparsed = result.unparsed;
+        solution = result.solution;
+
+        continue;
+      }
+
+      // write meta data
+      this.meta = this.unparsed.slice(0, this.numMeta);
+      for (const m of this.meta) {
+        solution += m;
+      }
+
+      // return rest;
+      const unparsed = this.unparsed.length > this.numMeta
+        ? this.unparsed.slice(this.numMeta)
+        : [];
+
+      return {unparsed: unparsed, solution: solution};
+    }
   }
 }
 
@@ -158,63 +211,14 @@ export class AppComponent implements OnInit {
   }
 
   // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
-  async solve7b(input: string) {
-    const rows = input.split('\n');
+  async solve8a(input: string) {
+    const nums = input.split(' ').map(n => parseInt(n, 10));
 
-    const steps = {};
+    const root = new Node(nums);
 
-    for (const r of rows) {
-      const parts = r.replace('Step ', '').replace(' can begin.', '').split(' must be finished before step ');
+    const result = root.parse();
 
-      const req = parts[0];
-      const s = parts[1];
-
-      if (steps[req] == null) {
-        steps[req] = new Step(req);
-      }
-      if (steps[s] == null) {
-        steps[s] = new Step(s);
-      }
-
-      steps[s].prerequisites.push(steps[req]);
-      steps[req].followups.push(steps[s]);
-    }
-
-    let priorityQueue: Step[] = [];
-
-    for (const i in steps) {
-      if (!steps.hasOwnProperty(i)) {
-        continue;
-      }
-
-      priorityQueue.push(steps[i]);
-    }
-
-    priorityQueue.sort((a: Step, b: Step) => {
-      if (a.prerequisites.length !== b.prerequisites.length) {
-        return a.prerequisites.length < b.prerequisites.length ? -1 : 1;
-      }
-
-      return a.name < b.name ? -1 : 1;
-    });
-
-    let solution = 0;
-
-    while (priorityQueue.length > 0) {
-      const nextFreeSteps = priorityQueue
-        .filter(s => s.prerequisites.length === 0 || s.prerequisites.every(s1 => s1.done === 0))
-        .sort((a, b) => a.name < b.name ? -1 : 1);
-
-      for (let i = 0; i < 5 && i < nextFreeSteps.length; i++) {
-        nextFreeSteps[i].done--;
-      }
-
-      solution++;
-
-      priorityQueue = priorityQueue.filter(s => s.done > 0);
-    }
-
-    return solution;
+    return result.solution;
   }
 
   // noinspection JSUnusedGlobalSymbols
