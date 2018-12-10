@@ -1,102 +1,18 @@
 import {Component, HostBinding, OnInit} from '@angular/core';
 
-class Player {
-  points = 0;
+class Star {
+  constructor(public x: number, public y: number, public dx: number, public dy: number) {
 
-  constructor(public num: number) {
-  }
-}
-
-class ListNode<T> {
-  value: T;
-  prev: ListNode<T>;
-  next: ListNode<T>;
-
-  constructor(val: T) {
-    this.value = val;
   }
 
-  addToNext(val: T): ListNode<T> {
-    const node = new ListNode(val);
-
-    const prevNext = this.next;
-
-    this.next = node;
-    node.prev = this;
-
-    node.next = prevNext;
-    prevNext.prev = node;
-
-    return node;
-  }
-}
-
-class Node {
-  numChildren = 0;
-  numMeta = 0;
-  numSiblings = 0;
-
-  value = 0;
-
-  parent: Node;
-
-  children: Node[] = [];
-  meta: number[] = [];
-
-  unparsed: number[] = [];
-
-  constructor(nums: number[], parent: Node = null) {
-    this.numChildren = nums[0];
-    this.numMeta = nums[1];
-
-    this.unparsed = nums.slice(2);
-
-    this.parent = parent;
+  move() {
+    this.x += this.dx;
+    this.y += this.dy;
   }
 
-  parse(): number[] {
-    while (true) {
-      // create new child node:
-      if (this.numChildren > this.children.length) {
-        const child = new Node(this.unparsed, this);
-        this.children.push(child);
-
-        this.unparsed = child.parse();
-
-        continue;
-      }
-
-      // write meta data
-      this.meta = this.unparsed.slice(0, this.numMeta);
-
-      // return rest;
-      return this.unparsed.length > this.numMeta
-        ? this.unparsed.slice(this.numMeta)
-        : [];
-    }
-  }
-
-  calculate(): number {
-    if (this.value !== 0) {
-      return this.value;
-    }
-
-    if (this.numChildren === 0) {
-      this.value = this.meta.reduce((acc, a) => acc + a);
-      return this.value;
-    }
-
-    let value = 0;
-    for (const m of this.meta) {
-      if (m < 1 || m > this.numChildren) {
-        continue;
-      }
-
-      value += this.children[m - 1].calculate();
-    }
-    this.value = value;
-
-    return this.value;
+  rewind() {
+    this.x -= this.dx;
+    this.y -= this.dy;
   }
 }
 
@@ -127,6 +43,21 @@ export class AppComponent implements OnInit {
   backgroundImageUrl = '';
 
   solvingTickerInterval;
+
+  static parseStar(str: string): Star {
+    const parts = str
+      .replace(/ /g, '')
+      .replace(/</g, ',')
+      .replace(/>/g, ',')
+      .split(',');
+
+    return new Star(
+      parseInt(parts[1], 10),
+      parseInt(parts[2], 10),
+      parseInt(parts[4], 10),
+      parseInt(parts[5], 10)
+    );
+  }
 
   @HostBinding('style.background-image')
   get background(): string {
@@ -180,51 +111,68 @@ export class AppComponent implements OnInit {
   }
 
   // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
-  async solve9a(input: string) {
-    const nums = input.split(' ').map(n => parseInt(n, 10));
+  async solve10a(input: string) {
+    const stars: Star[] = input.split('\n')
+      .map(str => AppComponent.parseStar(str));
 
-    const numPlayers = nums[0];
-    const maxPoints = nums[6];
+    let prevminy = 0;
+    let prevmaxy = 0;
 
-    const first: ListNode<number> = new ListNode(0);
-    first.prev = first;
-    first.next = first;
+    let minx = 0;
+    let maxx = 0;
+    let miny = 0;
+    let maxy = 0;
 
-    const players: Player[] = [];
+    this.debugStr = '';
 
-    for (let i = 0; i < numPlayers; i++) {
-      players.push(new Player(i));
-    }
+    let ii = 0;
 
-    let current = first;
+    for (; ii < 10000000; ii++) {
+      minx = Number.MAX_SAFE_INTEGER;
+      maxx = Number.MIN_SAFE_INTEGER;
+      miny = Number.MAX_SAFE_INTEGER;
+      maxy = Number.MIN_SAFE_INTEGER;
 
-    let p = -1;
-    for (let i = 1; i < maxPoints; i++) {
-      p++;
-      if (p >= numPlayers) {
-        p = 0;
+      for (const s of stars) {
+        s.move();
+
+        minx = Math.min(minx, s.x);
+        miny = Math.min(miny, s.y);
+        maxx = Math.max(maxx, s.x);
+        maxy = Math.max(maxy, s.y);
       }
 
-      if (i % 23 === 0) {
-        players[p].points += i;
-
-        const sevenToLeft = current.prev.prev.prev.prev.prev.prev.prev;
-
-        players[p].points += sevenToLeft.value;
-
-        current = sevenToLeft.next;
-
-        sevenToLeft.prev.next = sevenToLeft.next;
-        sevenToLeft.next.prev = sevenToLeft.prev;
-
-        continue;
+      if (prevminy === prevmaxy && prevminy === 0) {
+        prevmaxy = maxy;
+        prevminy = miny;
       }
 
-      current = current.next.addToNext(i);
+      if (Math.abs(maxy - miny) > Math.abs(prevmaxy - prevminy)) {
+        for (const s of stars) {
+          s.rewind();
+        }
+
+        this.tulosta(stars, minx, maxx, miny, maxy);
+
+        return ii;
+      }
+
+      prevmaxy = maxy;
+      prevminy = miny;
     }
 
-    return players
-      .sort((a: Player, b: Player) => a.points > b.points ? -1 : 1)[0].points;
+    return 'Eipä löytynyt :(';
+  }
+
+  tulosta(stars, minx, maxx, miny, maxy) {
+    this.debugStr += '\n';
+    for (let y = miny; y <= maxy; y++) {
+      for (let x = minx; x <= maxx; x++) {
+        this.debugStr += stars.some(s => s.x === x && s.y === y) ? '#' : '.';
+      }
+
+      this.debugStr += '\n';
+    }
   }
 
   solveStart() {

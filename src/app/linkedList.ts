@@ -1,4 +1,4 @@
-
+/*
 
 // noinspection JSUnusedLocalSymbols
 class LinkedList<T> {
@@ -25,3 +25,4 @@ class LinkedList<T> {
   }
 }
 
+*/
