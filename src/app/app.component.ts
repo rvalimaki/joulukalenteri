@@ -1,5 +1,36 @@
 import {Component, HostBinding, OnInit} from '@angular/core';
 
+class Player {
+  points = 0;
+
+  constructor(public num: number) {
+  }
+}
+
+class ListNode<T> {
+  value: T;
+  prev: ListNode<T>;
+  next: ListNode<T>;
+
+  constructor(val: T) {
+    this.value = val;
+  }
+
+  addToNext(val: T): ListNode<T> {
+    const node = new ListNode(val);
+
+    const prevNext = this.next;
+
+    this.next = node;
+    node.prev = this;
+
+    node.next = prevNext;
+    prevNext.prev = node;
+
+    return node;
+  }
+}
+
 class Node {
   numChildren = 0;
   numMeta = 0;
@@ -149,16 +180,51 @@ export class AppComponent implements OnInit {
   }
 
   // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
-  async solve8b(input: string) {
+  async solve9a(input: string) {
     const nums = input.split(' ').map(n => parseInt(n, 10));
 
-    const root = new Node(nums);
+    const numPlayers = nums[0];
+    const maxPoints = nums[6];
 
-    root.parse();
+    const first: ListNode<number> = new ListNode(0);
+    first.prev = first;
+    first.next = first;
 
-    root.calculate();
+    const players: Player[] = [];
 
-    return root.value;
+    for (let i = 0; i < numPlayers; i++) {
+      players.push(new Player(i));
+    }
+
+    let current = first;
+
+    let p = -1;
+    for (let i = 1; i < maxPoints; i++) {
+      p++;
+      if (p >= numPlayers) {
+        p = 0;
+      }
+
+      if (i % 23 === 0) {
+        players[p].points += i;
+
+        const sevenToLeft = current.prev.prev.prev.prev.prev.prev.prev;
+
+        players[p].points += sevenToLeft.value;
+
+        current = sevenToLeft.next;
+
+        sevenToLeft.prev.next = sevenToLeft.next;
+        sevenToLeft.next.prev = sevenToLeft.prev;
+
+        continue;
+      }
+
+      current = current.next.addToNext(i);
+    }
+
+    return players
+      .sort((a: Player, b: Player) => a.points > b.points ? -1 : 1)[0].points;
   }
 
   solveStart() {

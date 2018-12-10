@@ -1,12 +1,4 @@
-class ListNode<T> {
-  value: T;
-  prev: ListNode<T>;
-  next: ListNode<T>;
 
-  constructor(val: T) {
-    this.value = val;
-  }
-}
 
 // noinspection JSUnusedLocalSymbols
 class LinkedList<T> {
