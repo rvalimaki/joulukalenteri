@@ -111,69 +111,48 @@ export class AppComponent implements OnInit {
   }
 
   // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
-  async solve10a(input: string) {
-    const stars: Star[] = input.split('\n')
-      .map(str => AppComponent.parseStar(str));
+  async solve1b(input: string) {
+    const modules: number[] = input.split('\n')
+      .map(str => Number.parseInt(str, 10));
 
-    let prevminy = 0;
-    let prevmaxy = 0;
+    let fuel = 0;
 
-    let minx = 0;
-    let maxx = 0;
-    let miny = 0;
-    let maxy = 0;
+    for (const mass of modules) {
+      fuel += this.calculate1bFuel(mass);
+    }
 
-    this.debugStr = '';
+    return fuel;
+  }
 
-    let ii = 0;
+  calculate1aFuel(mass: number) {
+    return Math.floor(mass / 3) - 2;
+  }
 
-    for (; ii < 10000000; ii++) {
-      minx = Number.MAX_SAFE_INTEGER;
-      maxx = Number.MIN_SAFE_INTEGER;
-      miny = Number.MAX_SAFE_INTEGER;
-      maxy = Number.MIN_SAFE_INTEGER;
+  calculate1bFuel(mass: number) {
+    let lastFuel = this.calculate1aFuel(mass);
+    let totalFuel = 0;
 
-      for (const s of stars) {
-        s.move();
+    while (lastFuel > 0) {
+      totalFuel += lastFuel;
 
-        minx = Math.min(minx, s.x);
-        miny = Math.min(miny, s.y);
-        maxx = Math.max(maxx, s.x);
-        maxy = Math.max(maxy, s.y);
-      }
+      lastFuel = this.calculate1aFuel(lastFuel);
+    }
 
-      if (prevminy === prevmaxy && prevminy === 0) {
-        prevmaxy = maxy;
-        prevminy = miny;
-      }
+    return totalFuel;
+  }
 
-      if (Math.abs(maxy - miny) > Math.abs(prevmaxy - prevminy)) {
-        for (const s of stars) {
-          s.rewind();
+  /*
+    tulosta(stars, minx, maxx, miny, maxy) {
+      this.debugStr += '\n';
+      for (let y = miny; y <= maxy; y++) {
+        for (let x = minx; x <= maxx; x++) {
+          this.debugStr += stars.some(s => s.x === x && s.y === y) ? '#' : '.';
         }
 
-        this.tulosta(stars, minx, maxx, miny, maxy);
-
-        return ii;
+        this.debugStr += '\n';
       }
-
-      prevmaxy = maxy;
-      prevminy = miny;
     }
-
-    return 'Eipä löytynyt :(';
-  }
-
-  tulosta(stars, minx, maxx, miny, maxy) {
-    this.debugStr += '\n';
-    for (let y = miny; y <= maxy; y++) {
-      for (let x = minx; x <= maxx; x++) {
-        this.debugStr += stars.some(s => s.x === x && s.y === y) ? '#' : '.';
-      }
-
-      this.debugStr += '\n';
-    }
-  }
+  */
 
   solveStart() {
     this.solution = 'solving';
