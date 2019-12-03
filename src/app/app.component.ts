@@ -1,27 +1,11 @@
 import {Component, HostBinding, OnInit} from '@angular/core';
 
-class Star {
-  constructor(public x: number, public y: number, public dx: number, public dy: number) {
-
-  }
-
-  move() {
-    this.x += this.dx;
-    this.y += this.dy;
-  }
-
-  rewind() {
-    this.x -= this.dx;
-    this.y -= this.dy;
-  }
-}
-
 @Component({
   selector: 'app-root',
   template: `
     <div class="blur" [style.background-image]="background"></div>
 
-    <h1>Advent of Code: {{latestSolutionName.replace('solve', '')}}</h1>
+    <h1>Advent of Code 2019: {{latestSolutionName.replace('solve', '')}}</h1>
 
     <textarea id="input" name="input" #input></textarea>
 
@@ -44,41 +28,13 @@ export class AppComponent implements OnInit {
 
   solvingTickerInterval;
 
-  static parseStar(str: string): Star {
-    const parts = str
-      .replace(/ /g, '')
-      .replace(/</g, ',')
-      .replace(/>/g, ',')
-      .split(',');
+  constructor() {
 
-    return new Star(
-      parseInt(parts[1], 10),
-      parseInt(parts[2], 10),
-      parseInt(parts[4], 10),
-      parseInt(parts[5], 10)
-    );
   }
 
   @HostBinding('style.background-image')
   get background(): string {
     return 'url(' + this.backgroundImageUrl + ')';
-  }
-
-  constructor() {
-
-  }
-
-  ngOnInit() {
-    const input = localStorage.getItem('kalenteriInput');
-
-    const inputElement = document.getElementById('input');
-    if (inputElement != null) {
-      inputElement['value'] = input;
-    }
-
-    if (input !== '') {
-      this.solve(input).then();
-    }
   }
 
   get latestSolutionName(): string {
@@ -96,63 +52,106 @@ export class AppComponent implements OnInit {
     }
   }
 
+  ngOnInit() {
+    const input = localStorage.getItem('kalenteriInput');
+
+    const inputElement = document.getElementById('input');
+    if (inputElement != null) {
+      inputElement['value'] = input;
+    }
+
+    if (input !== '') {
+      this.solve(input).then();
+    }
+  }
+
   async solve(input: string) {
     this.solveStart();
 
-    const rand = Math.ceil(Math.random() * 25);
+    const latestSolutionName = this.latestSolutionName;
+
+    const rand = Number.parseInt(latestSolutionName.substr(5, latestSolutionName.length - 6), 10);
+    // const rand = Math.ceil(Math.random() * 25);
 
     this.backgroundImageUrl = 'https://newevolutiondesigns.com/images/freebies/christmas-wallpaper-' + rand + '.jpg';
 
     localStorage.setItem('kalenteriInput', input);
 
-    const solution = await this[this.latestSolutionName](input);
+    const solution = await this[latestSolutionName](input);
 
     this.solveFinish(solution);
   }
 
   // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
-  async solve1b(input: string) {
-    const modules: number[] = input.split('\n')
+  async solve2b(input: string) {
+    const inputs: number[] = input.split(',')
       .map(str => Number.parseInt(str, 10));
 
-    let fuel = 0;
+    for (let noun = 0; noun <= 99; noun++) {
+      for (let verb = 0; verb <= 99; verb++) {
+        const memory = inputs.slice(0);
 
-    for (const mass of modules) {
-      fuel += this.calculate1bFuel(mass);
-    }
+        this.compileIntCodeProgram(memory, noun, verb);
 
-    return fuel;
-  }
-
-  calculate1aFuel(mass: number) {
-    return Math.floor(mass / 3) - 2;
-  }
-
-  calculate1bFuel(mass: number) {
-    let lastFuel = this.calculate1aFuel(mass);
-    let totalFuel = 0;
-
-    while (lastFuel > 0) {
-      totalFuel += lastFuel;
-
-      lastFuel = this.calculate1aFuel(lastFuel);
-    }
-
-    return totalFuel;
-  }
-
-  /*
-    tulosta(stars, minx, maxx, miny, maxy) {
-      this.debugStr += '\n';
-      for (let y = miny; y <= maxy; y++) {
-        for (let x = minx; x <= maxx; x++) {
-          this.debugStr += stars.some(s => s.x === x && s.y === y) ? '#' : '.';
+        if (memory[0] === 19690720) {
+          return noun * 100 + verb;
         }
-
-        this.debugStr += '\n';
       }
     }
-  */
+
+    return 'not found';
+  }
+
+  compileIntCodeProgram(integers: number[], noun: number, verb: number) {
+    // elf magic codes:
+    integers[1] = noun;
+    integers[2] = verb;
+
+    let operationPhase = -1;
+    let currentOp = 0;
+    let a = 0;
+    let b = 0;
+    let replace = 0;
+
+    for (let i = 0; i < integers.length; i++) {
+      operationPhase++;
+      if (operationPhase > 3) {
+        operationPhase = 0;
+      }
+
+      if (operationPhase === 0 && integers[i] === 99) {
+        break;
+      }
+
+      switch (operationPhase) {
+        case 0:
+          currentOp = integers[i];
+          continue;
+        case 1:
+          a = integers[i];
+          continue;
+        case 2:
+          b = integers[i];
+          continue;
+        case 3:
+          replace = integers[i];
+
+          integers[replace] = this.runOp(currentOp, integers[a], integers[b]);
+      }
+    }
+  }
+
+  runOp(opCode: number, a: number, b: number): number {
+    switch (opCode) {
+      case 1:
+        return a + b;
+      case 2:
+        return a * b;
+      default:
+        alert(opCode);
+    }
+    return 99;
+  }
 
   solveStart() {
     this.solution = 'solving';
