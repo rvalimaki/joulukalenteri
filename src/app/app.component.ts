@@ -83,23 +83,227 @@ export class AppComponent implements OnInit {
   }
 
   // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
-  async solve2b(input: string) {
-    const inputs: number[] = input.split(',')
-      .map(str => Number.parseInt(str, 10));
+  async solve3b(input: string) {
+    const lines = input.split('\n');
 
-    for (let noun = 0; noun <= 99; noun++) {
-      for (let verb = 0; verb <= 99; verb++) {
-        const memory = inputs.slice(0);
+    const lineA = this.parseDirections(lines[0]);
+    const lineB = this.parseDirections(lines[1]);
 
-        this.compileIntCodeProgram(memory, noun, verb);
+    const origoX = 10000;
+    const origoY = 10000;
 
-        if (memory[0] === 19690720) {
-          return noun * 100 + verb;
-        }
+    const taulukko = [];
+    for (let y = 0; y < origoY * 2; y++) {
+      taulukko[y] = [];
+
+      for (let x = 0; x < origoX * 2; x++) {
+        taulukko[y][x] = '.';
       }
     }
 
-    return 'not found';
+    const totalDistsLineA = [];
+    for (let y = 0; y < origoY * 2; y++) {
+      totalDistsLineA[y] = [];
+
+      for (let x = 0; x < origoX * 2; x++) {
+        totalDistsLineA[y][x] = 0;
+      }
+    }
+
+    let x = origoX;
+    let y = origoY;
+
+    let risteykset = [];
+
+    taulukko[y][x] = 'O';
+
+    let totalDist = 0;
+
+    try {
+      for (const d of lineA) {
+        switch (d.dir) {
+          case 'R':
+            for (let i = 0; i < d.dist; i++) {
+              x++;
+
+              totalDistsLineA[y][x] = ++totalDist;
+
+              switch (taulukko[y][x]) {
+                case 'O':
+                  continue;
+                case '.':
+                  taulukko[y][x] = '-';
+                  continue;
+                case '|':
+                case '-':
+                  taulukko[y][x] = 'x';
+              }
+            }
+            break;
+          case 'L':
+            for (let i = 0; i < d.dist; i++) {
+              x--;
+
+              totalDistsLineA[y][x] = ++totalDist;
+
+              switch (taulukko[y][x]) {
+                case 'O':
+                  continue;
+                case '.':
+                  taulukko[y][x] = '-';
+                  continue;
+                case '|':
+                case '-':
+                  taulukko[y][x] = 'x';
+              }
+            }
+            break;
+          case 'U':
+            for (let i = 0; i < d.dist; i++) {
+              y--;
+
+              totalDistsLineA[y][x] = ++totalDist;
+
+              switch (taulukko[y][x]) {
+                case 'O':
+                  continue;
+                case '.':
+                  taulukko[y][x] = '|';
+                  continue;
+                case '|':
+                case '-':
+                  taulukko[y][x] = 'x';
+              }
+            }
+            break;
+          case 'D':
+            for (let i = 0; i < d.dist; i++) {
+              y++;
+
+              totalDistsLineA[y][x] = ++totalDist;
+
+              switch (taulukko[y][x]) {
+                case 'O':
+                  continue;
+                case '.':
+                  taulukko[y][x] = '|';
+                  continue;
+                case '|':
+                case '-':
+                  taulukko[y][x] = 'x';
+              }
+            }
+            break;
+        }
+      }
+
+      x = origoX;
+      y = origoY;
+      totalDist = 0;
+
+      for (const d of lineB) {
+        switch (d.dir) {
+          case 'R':
+            for (let i = 0; i < d.dist; i++) {
+              x++;
+              totalDist++;
+
+              switch (taulukko[y][x]) {
+                case 'O':
+                  continue;
+                case '.':
+                  taulukko[y][x] = '_';
+                  continue;
+                case '|':
+                case '-':
+                case 'x':
+                  taulukko[y][x] = 'X';
+                  risteykset.push({
+                    x: x - origoX, y: y - origoY, d: Math.abs(x - origoX) + Math.abs(y - origoY),
+                    dd: totalDistsLineA[y][x] + totalDist
+                  });
+              }
+            }
+            break;
+          case 'L':
+            for (let i = 0; i < d.dist; i++) {
+              x--;
+              totalDist++;
+
+              switch (taulukko[y][x]) {
+                case 'O':
+                  continue;
+                case '.':
+                  taulukko[y][x] = '_';
+                  continue;
+                case '|':
+                case '-':
+                case 'x':
+                  taulukko[y][x] = 'X';
+                  risteykset.push({
+                    x: x - origoX, y: y - origoY, d: Math.abs(x - origoX) + Math.abs(y - origoY),
+                    dd: totalDistsLineA[y][x] + totalDist
+                  });
+              }
+            }
+            break;
+          case 'U':
+            for (let i = 0; i < d.dist; i++) {
+              y--;
+              totalDist++;
+
+              switch (taulukko[y][x]) {
+                case 'O':
+                  continue;
+                case '.':
+                  taulukko[y][x] = '[';
+                  continue;
+                case '|':
+                case '-':
+                case 'x':
+                  taulukko[y][x] = 'X';
+                  risteykset.push({
+                    x: x - origoX, y: y - origoY, d: Math.abs(x - origoX) + Math.abs(y - origoY),
+                    dd: totalDistsLineA[y][x] + totalDist
+                  });
+              }
+            }
+            break;
+          case 'D':
+            for (let i = 0; i < d.dist; i++) {
+              y++;
+              totalDist++;
+
+              switch (taulukko[y][x]) {
+                case 'O':
+                  continue;
+                case '.':
+                  taulukko[y][x] = '[';
+                  continue;
+                case '|':
+                case '-':
+                case 'x':
+                  taulukko[y][x] = 'X';
+                  risteykset.push({
+                    x: x - origoX, y: y - origoY, d: Math.abs(x - origoX) + Math.abs(y - origoY),
+                    dd: totalDistsLineA[y][x] + totalDist
+                  });
+              }
+            }
+            break;
+        }
+      }
+    } catch (e) {
+      return x + ':' + y + ' kosahti';
+    }
+    risteykset = risteykset.sort((a, b) => a.dd < b.dd ? -1 : 1);
+
+    return risteykset.map(r => r.x + ':' + r.y + ' dd' + r.dd).join(',');
+  }
+
+  parseDirections(input: string): { dir: string, dist: number }[] {
+    return input.split(',')
+      .map(str => ({dir: str[0], dist: Number.parseInt(str.substr(1), 10)}));
   }
 
   compileIntCodeProgram(integers: number[], noun: number, verb: number) {
