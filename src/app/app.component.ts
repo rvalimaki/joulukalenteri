@@ -83,7 +83,7 @@ export class AppComponent implements OnInit {
   }
 
   // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
-  async solve4a(input: string) {
+  async solve4b(input: string) {
     const range = input.split('-').map(str => Number.parseInt(str, 10));
 
     let num = range[0];
@@ -91,48 +91,79 @@ export class AppComponent implements OnInit {
 
     let numSolutions = 0;
 
+    this.debugStr = '';
+
     do {
       num = await this.nextValid(num);
-      if (num > max) {
+      if (num > max || num === 0) {
         break;
       }
 
       numSolutions++;
 
+      this.debugStr += num + '\n';
       console.log(num);
     } while (num < max);
 
     return numSolutions;
   }
 
+  resetCounts(digits: number[]): number[] {
+    const counts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (const d of digits) {
+      counts[d]++;
+    }
+
+    return counts;
+  }
+
   async nextValid(num: number): Promise<number> {
     num++;
+
     const digits = num.toString(10).split('').map(str => Number.parseInt(str, 10));
 
-    let has2same = false;
+    for (let i = 0; i < digits.length; i++) {
+      if (digits[i] === 0 && i > 0 && digits[i - 1] === 9) {
+        digits[i] = 9;
+      }
+    }
+
+    let counts = this.resetCounts(digits);
     let fill = false;
 
     let last = digits[0];
     for (let i = 1; i < digits.length; i++) {
-      if (digits[i] > last && fill) {
-        digits[i] = last;
+      const pairNumber = counts.findIndex(nm => nm === 2);
+      if (last === 9 && (pairNumber < 0 || pairNumber > 8) && (counts[9] !== 1) && i < digits.length - 1) {
+        i = i - 2;
+
+        if (i < 0) {
+          return 0;
+        }
+
+        digits[i]++;
+        fill = true;
+        last = digits[i];
+        counts = this.resetCounts(digits);
+        continue;
       }
-      if (digits[i] === last) {
-        has2same = true;
-      }
+
       if (digits[i] < last) {
         digits[i] = last;
-
-        has2same = true;
         fill = true;
       }
 
+      if (digits[i] >= last && fill) {
+        digits[i] = last;
+      }
+
       last = digits[i];
+      counts = this.resetCounts(digits);
     }
 
     num = Number.parseInt(digits.join(''), 10);
 
-    if (!has2same) {
+    if (!counts.includes(2)) {
       num = await this.nextValid(num);
     }
 
@@ -192,6 +223,7 @@ export class AppComponent implements OnInit {
 
   solveStart() {
     this.solution = 'solving';
+    this.debugStr = null;
 
     if (this.solvingTickerInterval != null) {
       clearInterval(this.solvingTickerInterval);
