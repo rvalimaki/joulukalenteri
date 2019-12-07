@@ -91,7 +91,7 @@ export class AppComponent implements OnInit {
   }
 
   // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
-  async solve5a(input: string) {
+  async solve5b(input: string) {
     const intcodes = input.split(',').map(str => Number.parseInt(str, 10));
 
     return this.runIntCodeProgram(intcodes);
@@ -123,16 +123,21 @@ export class AppComponent implements OnInit {
     switch (op) {
       case 1:
       case 2:
+      case 7:
+      case 8:
         return 3;
       case 3:
       case 4:
         return 1;
+      case 5:
+      case 6:
+        return 2;
     }
     alert('Guru meditation error!!! ' + op);
     return -1;
   }
 
-  runIntCodeProgram(integers: number[], in_put = 1): string {
+  runIntCodeProgram(integers: number[], in_put = 5): string {
     let operationPhase = -1;
     let currentOp: Operation = null;
     const p: number[] = [0, 0, 0, 0];
@@ -156,12 +161,14 @@ export class AppComponent implements OnInit {
       p[operationPhase] = integers[i];
 
       if (operationPhase === currentOp.lastPhase) {
+        const a = currentOp.m1 ? p[1] : integers[p[1]];
+        const b = currentOp.m2 ? p[2] : integers[p[2]];
+
         switch (currentOp.op) {
           case 1:
           case 2:
-            const a = currentOp.m1 ? p[1] : integers[p[1]];
-            const b = currentOp.m2 ? p[2] : integers[p[2]];
-
+          case 7:
+          case 8:
             integers[p[3]] = this.runOp(currentOp.op, a, b);
             break;
           case 3:
@@ -176,6 +183,16 @@ export class AppComponent implements OnInit {
               output += input;
             } else {
               output += integers[p[1]];
+            }
+            break;
+          case 5:
+            if (a !== 0) {
+              i = b - 1;
+            }
+            break;
+          case 6:
+            if (a === 0) {
+              i = b - 1;
             }
             break;
 
@@ -194,6 +211,10 @@ export class AppComponent implements OnInit {
         return a + b;
       case 2:
         return a * b;
+      case 7:
+        return a < b ? 1 : 0;
+      case 8:
+        return a === b ? 1 : 0;
       default:
         alert(opCode);
     }
