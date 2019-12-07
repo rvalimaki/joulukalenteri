@@ -1,5 +1,13 @@
 import {Component, HostBinding, OnInit} from '@angular/core';
 
+interface Operation {
+  op: number;
+  m1: boolean;
+  m2: boolean;
+  m3: boolean;
+  lastPhase: number;
+}
+
 @Component({
   selector: 'app-root',
   template: `
@@ -83,128 +91,99 @@ export class AppComponent implements OnInit {
   }
 
   // noinspection JSMethodCanBeStatic, JSUnusedGlobalSymbols
-  async solve4b(input: string) {
-    const range = input.split('-').map(str => Number.parseInt(str, 10));
+  async solve5a(input: string) {
+    const intcodes = input.split(',').map(str => Number.parseInt(str, 10));
 
-    let num = range[0];
-    const max = range[1];
-
-    let numSolutions = 0;
-
-    this.debugStr = '';
-
-    do {
-      num = await this.nextValid(num);
-      if (num > max || num === 0) {
-        break;
-      }
-
-      numSolutions++;
-
-      this.debugStr += num + '\n';
-      console.log(num);
-    } while (num < max);
-
-    return numSolutions;
+    return this.runIntCodeProgram(intcodes);
   }
 
-  resetCounts(digits: number[]): number[] {
-    const counts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    for (const d of digits) {
-      counts[d]++;
-    }
+  readOp(op: number): Operation {
+    const ret: Operation = {op: 0, m1: false, m2: false, m3: false, lastPhase: 0};
 
-    return counts;
+    if (op >= 10000) {
+      ret.m3 = true;
+      op -= 10000;
+    }
+    if (op >= 1000) {
+      ret.m2 = true;
+      op -= 1000;
+    }
+    if (op >= 100) {
+      ret.m1 = true;
+      op -= 100;
+    }
+    ret.op = op;
+    ret.lastPhase = this.getOpLastPhase(op);
+
+    return ret;
   }
 
-  async nextValid(num: number): Promise<number> {
-    num++;
-
-    const digits = num.toString(10).split('').map(str => Number.parseInt(str, 10));
-
-    for (let i = 0; i < digits.length; i++) {
-      if (digits[i] === 0 && i > 0 && digits[i - 1] === 9) {
-        digits[i] = 9;
-      }
+  getOpLastPhase(op: number) {
+    console.log(op);
+    switch (op) {
+      case 1:
+      case 2:
+        return 3;
+      case 3:
+      case 4:
+        return 1;
     }
-
-    let counts = this.resetCounts(digits);
-    let fill = false;
-
-    let last = digits[0];
-    for (let i = 1; i < digits.length; i++) {
-      const pairNumber = counts.findIndex(nm => nm === 2);
-      if (last === 9 && (pairNumber < 0 || pairNumber > 8) && (counts[9] !== 1) && i < digits.length - 1) {
-        i = i - 2;
-
-        if (i < 0) {
-          return 0;
-        }
-
-        digits[i]++;
-        fill = true;
-        last = digits[i];
-        counts = this.resetCounts(digits);
-        continue;
-      }
-
-      if (digits[i] < last) {
-        digits[i] = last;
-        fill = true;
-      }
-
-      if (digits[i] >= last && fill) {
-        digits[i] = last;
-      }
-
-      last = digits[i];
-      counts = this.resetCounts(digits);
-    }
-
-    num = Number.parseInt(digits.join(''), 10);
-
-    if (!counts.includes(2)) {
-      num = await this.nextValid(num);
-    }
-
-    return num;
+    alert('Guru meditation error!!! ' + op);
+    return -1;
   }
 
-  compileIntCodeProgram(integers: number[], noun: number, verb: number) {
-    // elf magic codes:
-    integers[1] = noun;
-    integers[2] = verb;
-
+  runIntCodeProgram(integers: number[], in_put = 1): string {
     let operationPhase = -1;
-    let currentOp = 0;
-    let a = 0;
-    let b = 0;
-    let replace = 0;
+    let currentOp: Operation = null;
+    const p: number[] = [0, 0, 0, 0];
+
+    let input = 0;
+    let output = '';
 
     for (let i = 0; i < integers.length; i++) {
       operationPhase++;
-      if (operationPhase > 3) {
-        operationPhase = 0;
+
+      if (operationPhase === 0) {
+        if (integers[i] === 99) {
+          return parseInt(output, 10).toString(10);
+        }
+
+        currentOp = this.readOp(integers[i]);
+
+        continue;
       }
 
-      if (operationPhase === 0 && integers[i] === 99) {
-        break;
-      }
+      p[operationPhase] = integers[i];
 
-      switch (operationPhase) {
-        case 0:
-          currentOp = integers[i];
-          continue;
-        case 1:
-          a = integers[i];
-          continue;
-        case 2:
-          b = integers[i];
-          continue;
-        case 3:
-          replace = integers[i];
+      if (operationPhase === currentOp.lastPhase) {
+        switch (currentOp.op) {
+          case 1:
+          case 2:
+            const a = currentOp.m1 ? p[1] : integers[p[1]];
+            const b = currentOp.m2 ? p[2] : integers[p[2]];
 
-          integers[replace] = this.runOp(currentOp, integers[a], integers[b]);
+            integers[p[3]] = this.runOp(currentOp.op, a, b);
+            break;
+          case 3:
+            if (currentOp.m1) {
+              input = in_put;
+            } else {
+              integers[p[1]] = in_put;
+            }
+            break;
+          case 4:
+            if (currentOp.m1) {
+              output += input;
+            } else {
+              output += integers[p[1]];
+            }
+            break;
+
+          default:
+            alert('Guru levitation error!!!');
+        }
+
+        operationPhase = -1;
       }
     }
   }
